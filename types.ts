@@ -52,9 +52,29 @@ export interface TetrisGlobalAPI {
   toggle: (key: keyof GameConfig) => void;
 }
 
+export interface TetrisSDK {
+  /**
+   * Initialize the 3D Background into a specific container
+   * @param containerId The ID of the DOM element to mount the canvas into
+   * @param options Optional initial configuration overrides
+   */
+  init: (containerId: string, options?: Partial<GameConfig>) => void;
+  
+  /**
+   * Destroy the instance and cleanup resources
+   */
+  destroy: () => void;
+
+  /**
+   * Access the runtime control API (Available after init)
+   */
+  api: TetrisGlobalAPI | null;
+}
+
 declare global {
   interface Window {
-    TetrisFlow: TetrisGlobalAPI;
+    TetrisFlow: TetrisGlobalAPI; // The runtime controller
+    TetrisSDK: TetrisSDK;        // The bootstrapper
   }
 }
 

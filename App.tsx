@@ -5,11 +5,17 @@ import { GameConfig, DEFAULT_ROWS, DEFAULT_COLS, AppMode } from './types';
 import { Controls } from './components/Controls';
 import { PresetManager } from './logic/PresetManager';
 
-const App: React.FC = () => {
+interface AppProps {
+  initialConfigOverride?: Partial<GameConfig>;
+  sdkMode?: boolean;
+}
+
+const App: React.FC<AppProps> = ({ initialConfigOverride, sdkMode = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneManagerRef = useRef<SceneManager | null>(null);
   
-  const [mode, setMode] = useState<AppMode>('debug');
+  // If in SDK mode, default to 'live', otherwise 'debug'
+  const [mode, setMode] = useState<AppMode>(sdkMode ? 'live' : 'debug');
 
   const [config, setConfig] = useState<GameConfig>({
     bpm: 300,
@@ -40,14 +46,20 @@ const App: React.FC = () => {
     blockMetalness: 0.5,
     blockTransmission: 0.2,
     blockThickness: 1.0,
-    environmentDimming: 0
+    environmentDimming: 0,
+    
+    // Apply overrides
+    ...initialConfigOverride
   });
 
-  // Check URL params for mode on mount
+  // Check URL params for mode on mount (overrides everything)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('mode') === 'live') {
+    const urlMode = params.get('mode');
+    if (urlMode === 'live') {
       setMode('live');
+    } else if (urlMode === 'debug') {
+      setMode('debug');
     }
   }, []);
 
@@ -71,6 +83,13 @@ const App: React.FC = () => {
       toggle: (key: keyof GameConfig) => {
         setConfig(prev => ({ ...prev, [key]: !prev[key as keyof GameConfig] }));
       }
+    };
+
+    // Cleanup on unmount to prevent stale API references in SDK mode
+    return () => {
+      // We don't delete window.TetrisFlow here because in strict mode React mounts/unmounts twice,
+      // and we want to keep the reference valid.
+      // However, for a true SDK "destroy", the parent unmounts the root, and index.tsx handles the deletion.
     };
   }, []);
 
@@ -102,7 +121,8 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-full bg-black">
+    // We remove w-full h-full and use absolute inset-0 to fill the HOST container strictly
+    <div className="absolute inset-0 overflow-hidden bg-black/90">
       <div 
         ref={containerRef} 
         className="absolute inset-0 z-0"
