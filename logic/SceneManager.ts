@@ -1,5 +1,3 @@
-
-
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
@@ -33,6 +31,9 @@ export class SceneManager {
   private currentMove: { x: number, rotation: number, dropY: number } | null = null;
   private isProcessingMove = false;
   private moveStepIndex = 0; // 0: rotate, 1: move X, 2: drop
+
+  // Constants
+  private readonly BOARD_CENTER_Y = 10;
 
   constructor(container: HTMLElement, config: GameConfig) {
     this.container = container;
@@ -150,7 +151,8 @@ export class SceneManager {
   private createStaticEnvironment() {
     // Grid Lines (Retro floor)
     this.gridHelper = new THREE.GridHelper(200, 100, 0xff00ff, 0x110022);
-    this.gridHelper.position.y = -2;
+    // Lower the floor to avoid clipping with tall boards (max rows ~40 -> bottom at -10)
+    this.gridHelper.position.y = -15; 
     this.gridHelper.position.z = -10;
     this.scene.add(this.gridHelper);
   }
@@ -173,8 +175,13 @@ export class SceneManager {
     this.gridGroup.add(this.boardFrame);
     
     // Center grid group in world
+    // We position the group such that the visual center of the board (gridRows/2)
+    // always ends up at this.BOARD_CENTER_Y (10).
+    // Equation: GroupY + LocalCenterY = WorldCenterY
+    // GroupY + (gridRows/2) = 10
+    // GroupY = 10 - gridRows/2
     this.gridGroup.position.x = -gridCols / 2;
-    this.gridGroup.position.y = -gridRows / 2 + 10; // Lift it up a bit
+    this.gridGroup.position.y = this.BOARD_CENTER_Y - gridRows / 2;
   }
 
   private initCubesPool() {
@@ -264,8 +271,8 @@ export class SceneManager {
   private updateCameraPosition(time: number = 0) {
     const { cameraMode, cameraX, cameraY, cameraZ, rotationSpeed, gridRows } = this.config;
 
-    // Center of board target
-    const targetY = (gridRows / 2);
+    // We look at the stable center of the board
+    const targetY = this.BOARD_CENTER_Y;
 
     if (cameraMode === 'manual') {
       this.camera.position.set(cameraX, cameraY, cameraZ);
@@ -273,10 +280,14 @@ export class SceneManager {
     } else {
       // Orbit
       const angle = time * 0.0001 * rotationSpeed;
+      // We scale distance so the whole board fits, but the target remains the center
       const dist = Math.max(gridRows * 1.5, 35);
+      
       this.camera.position.x = Math.sin(angle) * dist;
       this.camera.position.z = Math.cos(angle) * dist;
+      // Slight Bobbing relative to center
       this.camera.position.y = targetY + Math.sin(angle * 0.5) * 5;
+      
       this.camera.lookAt(0, targetY, 0);
     }
   }

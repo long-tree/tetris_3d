@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { GameConfig } from '../types';
 import { Settings, Maximize2, Minimize2, Video, Grid, Palette, MonitorPlay, Layers, Zap } from 'lucide-react';
@@ -17,7 +15,7 @@ export const Controls: React.FC<ControlsProps> = ({ config, onChange }) => {
     onChange('cameraMode', 'manual');
     if (preset === 'front') {
       onChange('cameraX', 0);
-      onChange('cameraY', config.gridRows / 2);
+      onChange('cameraY', 10); // Fixed center height
       onChange('cameraZ', Math.max(config.gridRows * 1.5, 30));
     } else if (preset === 'iso') {
       onChange('cameraX', 20);
