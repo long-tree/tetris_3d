@@ -1,5 +1,4 @@
 
-
 export type GridMatrix = (string | null)[][];
 
 export interface GameConfig {
@@ -30,6 +29,8 @@ export interface GameConfig {
   // Material & Atmosphere
   blockRoughness: number;
   blockMetalness: number;
+  blockTransmission: number; // New: Glass effect
+  blockThickness: number;    // New: Volume effect
   environmentDimming: number; // Fog density control
 }
 

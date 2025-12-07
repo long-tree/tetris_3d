@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
@@ -24,6 +25,7 @@ export class SceneManager {
   private starSystem: THREE.Points;
   private gridHelper: THREE.GridHelper;
   private boardFrame: THREE.LineSegments;
+  private envTexture: THREE.Texture;
 
   // Animation State
   private lastTime = 0;
@@ -46,6 +48,11 @@ export class SceneManager {
     this.fog = new THREE.FogExp2(0x050510, 0.035);
     this.scene.fog = this.fog;
 
+    // GENERATE ENVIRONMENT MAP (Crucial for Metal/Glass look)
+    this.envTexture = this.generateEnvironment();
+    this.scene.environment = this.envTexture;
+    // We don't set background to texture to keep deep black space feel, but environment is set for reflections.
+
     const width = container.clientWidth;
     const height = container.clientHeight;
 
@@ -55,8 +62,8 @@ export class SceneManager {
     this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
     this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.toneMapping = THREE.ReinhardToneMapping;
-    this.renderer.toneMappingExposure = 1.5;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; // Better for bright lights
+    this.renderer.toneMappingExposure = 1.2;
     container.appendChild(this.renderer.domElement);
 
     // 2. Post Processing
@@ -67,7 +74,7 @@ export class SceneManager {
       new THREE.Vector2(width, height),
       config.bloomStrength,
       0.5,
-      0.05 // Lower threshold to ensure glow
+      0.02 // Very low threshold to make everything glow
     );
 
     const outputPass = new OutputPass();
@@ -78,15 +85,16 @@ export class SceneManager {
     this.composer.addPass(outputPass);
 
     // 3. Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
     this.scene.add(ambientLight);
     
-    const light1 = new THREE.PointLight(0xcc00ff, 1.0, 100);
-    light1.position.set(-20, 30, 30);
+    // Key lights for shaping
+    const light1 = new THREE.PointLight(0xaa00ff, 2.0, 100);
+    light1.position.set(-20, 20, 20);
     this.scene.add(light1);
     
-    const light2 = new THREE.PointLight(0x00ffff, 1.0, 100);
-    light2.position.set(20, 10, 30);
+    const light2 = new THREE.PointLight(0x00aaff, 2.0, 100);
+    light2.position.set(20, 5, 20);
     this.scene.add(light2);
 
     // 4. Objects
@@ -102,14 +110,33 @@ export class SceneManager {
     window.addEventListener('resize', this.onResize);
   }
 
+  // Creates a procedural cyberpunk gradient for reflections
+  private generateEnvironment(): THREE.Texture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+        const grad = ctx.createLinearGradient(0, 0, 0, 512);
+        grad.addColorStop(0, '#1a0033'); // Deep purple top
+        grad.addColorStop(0.5, '#6600cc'); // Bright neon mid
+        grad.addColorStop(1, '#000000'); // Black bottom
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 512, 512);
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    return texture;
+  }
+
   private initStars() {
     const geometry = new THREE.BufferGeometry();
-    const count = 4000;
+    const count = 3000;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
 
     for (let i = 0; i < count; i++) {
-      const r = 120;
+      const r = 120 + Math.random() * 50;
       const theta = 2 * Math.PI * Math.random();
       const phi = Math.acos(2 * Math.random() - 1);
       
@@ -137,11 +164,12 @@ export class SceneManager {
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
     const material = new THREE.PointsMaterial({
-      size: 0.2,
+      size: 0.3,
       vertexColors: true,
       transparent: true,
-      opacity: 0.8,
-      blending: THREE.AdditiveBlending
+      opacity: 0.6,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
     });
 
     this.starSystem = new THREE.Points(geometry, material);
@@ -150,7 +178,7 @@ export class SceneManager {
 
   private createStaticEnvironment() {
     // Grid Lines (Retro floor)
-    this.gridHelper = new THREE.GridHelper(200, 100, 0xff00ff, 0x110022);
+    this.gridHelper = new THREE.GridHelper(300, 100, 0xff00ff, 0x0a001a);
     // Lower the floor to avoid clipping with tall boards (max rows ~40 -> bottom at -10)
     this.gridHelper.position.y = -15; 
     this.gridHelper.position.z = -10;
@@ -166,7 +194,7 @@ export class SceneManager {
     // Frame for the Tetris board
     const frameGeo = new THREE.BoxGeometry(gridCols, gridRows, 1);
     const edges = new THREE.EdgesGeometry(frameGeo);
-    this.boardFrame = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xaa44cc, transparent: true, opacity: 0.5 }));
+    this.boardFrame = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xaa44cc, transparent: true, opacity: 0.3 }));
     
     // Position visual center. 
     // Logic coords: (0,0) is bottom left. 
@@ -177,8 +205,7 @@ export class SceneManager {
     // Center grid group in world
     // We position the group such that the visual center of the board (gridRows/2)
     // always ends up at this.BOARD_CENTER_Y (10).
-    // Equation: GroupY + LocalCenterY = WorldCenterY
-    // GroupY + (gridRows/2) = 10
+    // Equation: GroupY + (gridRows/2) = 10
     // GroupY = 10 - gridRows/2
     this.gridGroup.position.x = -gridCols / 2;
     this.gridGroup.position.y = this.BOARD_CENTER_Y - gridRows / 2;
@@ -193,19 +220,27 @@ export class SceneManager {
     });
     this.cubes = [];
 
-    const geometry = new THREE.BoxGeometry(0.95, 0.95, 0.95);
+    // Slightly bevelled cube for better specular hits
+    const geometry = new THREE.BoxGeometry(0.96, 0.96, 0.96); 
+    
     // Create ample pool
     const poolSize = (this.config.gridRows * this.config.gridCols) + 20; 
     
     for (let i = 0; i < poolSize; i++) {
-      const material = new THREE.MeshStandardMaterial({
+      // Use MeshPhysicalMaterial for Glass/Translucency effects
+      const material = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         emissive: 0x000000,
-        emissiveIntensity: 3.0, // High intensity for bloom
+        emissiveIntensity: 1.0,
         roughness: this.config.blockRoughness,
         metalness: this.config.blockMetalness,
+        transmission: this.config.blockTransmission, // Glass effect
+        thickness: this.config.blockThickness, // Volume
         transparent: true,
-        opacity: this.config.opacity
+        opacity: this.config.opacity,
+        ior: 1.5, // Glass index of refraction
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.1
       });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.visible = false;
@@ -237,10 +272,12 @@ export class SceneManager {
 
     // Update Materials
     this.cubes.forEach(cube => {
-      const mat = cube.material as THREE.MeshStandardMaterial;
+      const mat = cube.material as THREE.MeshPhysicalMaterial;
       mat.opacity = newConfig.opacity;
       mat.roughness = newConfig.blockRoughness;
       mat.metalness = newConfig.blockMetalness;
+      mat.transmission = newConfig.blockTransmission;
+      mat.thickness = newConfig.blockThickness;
     });
     
     // Update Grid Helper Visibility
@@ -264,7 +301,7 @@ export class SceneManager {
   private getNeonColor(hueOffset: number): THREE.Color {
     const baseHue = 0.6 + (this.config.temperature * 0.4); 
     const finalHue = (baseHue + hueOffset) % 1.0;
-    // High saturation and lightness for glow
+    // High saturation, mid lightness for base color (emissive will handle brightness)
     return new THREE.Color().setHSL(finalHue, 1.0, 0.5);
   }
 
@@ -376,7 +413,7 @@ export class SceneManager {
     const { gridRows, gridCols, visualStyle, flowSpeed } = this.config;
 
     // Helper: Apply visual FX pattern
-    // Returns a multiplier for brightness (0.0 to ~2.0) and optionally shifts hue
+    // Returns a factor to multiply emissive by
     const getFlowFactor = (x: number, y: number, time: number): number => {
       if (visualStyle === 'none') return 1.0;
 
@@ -387,31 +424,31 @@ export class SceneManager {
 
       if (visualStyle === 'wave') {
          // Diagonal sine wave
-         return 1.2 + 0.5 * Math.sin(nx * 3 + ny * 3 - t);
+         return 1.2 + 0.8 * Math.sin(nx * 3 + ny * 3 - t);
       } 
       
       if (visualStyle === 'plasma') {
         // Multi-sine plasma
         const v = Math.sin(nx * 4 + t) + Math.sin(ny * 4 + t) + Math.sin((nx + ny) * 5 + t);
-        return 1.2 + 0.4 * v; 
+        return 1.2 + 0.6 * v; 
       }
 
       if (visualStyle === 'heart') {
         // Pulsing Heart Shape Math
         // Heart eq: (x^2 + y^2 - 1)^3 - x^2*y^3 = 0
         // We pulse the coordinate system to make it beat
-        const beat = 1.0 + 0.15 * Math.sin(t * 3) + 0.05 * Math.sin(t * 6); // complex beat
+        const beat = 1.0 + 0.2 * Math.sin(t * 5) + 0.1 * Math.sin(t * 10); // rapid beat
         const hx = nx * 1.5 * beat;
-        const hy = (ny + 0.2) * 1.5 * beat; // Offset y slightly up
+        const hy = (ny + 0.3) * 1.5 * beat;
         
         const a = hx * hx + hy * hy - 1;
         const result = a * a * a - hx * hx * hy * hy * hy;
         
         // Inside heart if result <= 0
         if (result <= 0) {
-           return 2.5; // Super bright inside heart
+           return 4.0; // Extremely bright inside
         } else {
-           return 0.3; // Dim outside
+           return 0.1; // Dim background
         }
       }
 
@@ -419,15 +456,20 @@ export class SceneManager {
     };
 
     const updateMesh = (mesh: THREE.Mesh, x: number, y: number, colorOffset: number) => {
-       const mat = mesh.material as THREE.MeshStandardMaterial;
+       const mat = mesh.material as THREE.MeshPhysicalMaterial;
        const baseColor = this.getNeonColor(colorOffset);
        
        const flow = getFlowFactor(x, y, time);
        
-       // Apply flow to emissive intensity/color
-       // We boost color brightness and emissive based on flow
-       mat.color.copy(baseColor).multiplyScalar(flow);
-       mat.emissive.copy(baseColor).multiplyScalar(flow);
+       // Update Color
+       // For physical material, we keep color somewhat dark to allow specular highlights to pop
+       // We drive the "Glow" via emissive
+       
+       mat.color.copy(baseColor).multiplyScalar(0.5); // Darker diffuse for glass look
+       
+       // Emissive is where the neon logic lives
+       // If flow > 1, it gets brighter. If flow < 1, it dims.
+       mat.emissive.copy(baseColor).multiplyScalar(flow * 1.5);
     };
 
     // 1. Render Static Grid

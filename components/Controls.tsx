@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { GameConfig } from '../types';
 import { Settings, Maximize2, Minimize2, Video, Grid, Palette, MonitorPlay, Layers, Zap } from 'lucide-react';
@@ -317,7 +318,8 @@ export const Controls: React.FC<ControlsProps> = ({ config, onChange }) => {
 
             <div className="border-t border-white/10 pt-4 mt-4">
                <h3 className="text-xs font-bold text-gray-400 mb-2">MATERIAL PROPERTIES</h3>
-               <div className="grid grid-cols-2 gap-3">
+               
+               <div className="grid grid-cols-2 gap-3 mb-2">
                  <div className="space-y-1">
                    <label className="text-[10px] text-gray-500 uppercase">Roughness</label>
                    <input
@@ -337,6 +339,28 @@ export const Controls: React.FC<ControlsProps> = ({ config, onChange }) => {
                    />
                  </div>
                </div>
+               
+               <div className="grid grid-cols-2 gap-3">
+                 <div className="space-y-1">
+                   <label className="text-[10px] text-gray-500 uppercase">Glass (Transmission)</label>
+                   <input
+                    type="range" min="0" max="1" step="0.1"
+                    value={config.blockTransmission}
+                    onChange={(e) => onChange('blockTransmission', Number(e.target.value))}
+                    className="w-full h-1 bg-gray-700 rounded cursor-pointer accent-cyan-400"
+                   />
+                 </div>
+                 <div className="space-y-1">
+                   <label className="text-[10px] text-gray-500 uppercase">Thickness</label>
+                   <input
+                    type="range" min="0" max="2" step="0.1"
+                    value={config.blockThickness}
+                    onChange={(e) => onChange('blockThickness', Number(e.target.value))}
+                    className="w-full h-1 bg-gray-700 rounded cursor-pointer accent-cyan-400"
+                   />
+                 </div>
+               </div>
+
             </div>
           </>
         )}
