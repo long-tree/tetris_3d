@@ -1,6 +1,8 @@
 
 export type GridMatrix = (string | null)[][];
 
+export type AppMode = 'debug' | 'live';
+
 export interface GameConfig {
   // Gameplay
   bpm: number;
@@ -39,6 +41,21 @@ export interface Tetromino {
   shape: number[][];
   colorOffset: number; // Hue offset from base temperature
   pivot: { x: number; y: number };
+}
+
+export interface TetrisGlobalAPI {
+  set: (key: keyof GameConfig, value: any) => void;
+  setMode: (mode: AppMode) => void;
+  loadPreset: (name: string) => void;
+  getPresets: () => string[];
+  bulkUpdate: (partialConfig: Partial<GameConfig>) => void;
+  toggle: (key: keyof GameConfig) => void;
+}
+
+declare global {
+  interface Window {
+    TetrisFlow: TetrisGlobalAPI;
+  }
 }
 
 // Default constants for fallback

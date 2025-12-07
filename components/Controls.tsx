@@ -1,16 +1,51 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GameConfig } from '../types';
-import { Settings, Minimize2, Video, Grid, Palette, Zap } from 'lucide-react';
+import { Settings, Minimize2, Video, Grid, Palette, Zap, Save, Trash2, FolderOpen } from 'lucide-react';
+import { PresetManager } from '../logic/PresetManager';
 
 interface ControlsProps {
   config: GameConfig;
   onChange: (key: keyof GameConfig, value: number | boolean | string) => void;
+  onLoadConfig: (newConfig: GameConfig) => void;
 }
 
-export const Controls: React.FC<ControlsProps> = ({ config, onChange }) => {
+export const Controls: React.FC<ControlsProps> = ({ config, onChange, onLoadConfig }) => {
   const [minimized, setMinimized] = useState(false);
-  const [activeTab, setActiveTab] = useState<'layout' | 'camera' | 'visuals'>('layout');
+  const [activeTab, setActiveTab] = useState<'layout' | 'camera' | 'visuals' | 'presets'>('layout');
+  
+  // Preset State
+  const [presetName, setPresetName] = useState('');
+  const [savedPresets, setSavedPresets] = useState<string[]>([]);
+
+  useEffect(() => {
+    refreshPresets();
+  }, []);
+
+  const refreshPresets = () => {
+    setSavedPresets(PresetManager.list());
+  };
+
+  const handleSavePreset = () => {
+    if (!presetName.trim()) return;
+    PresetManager.save(presetName, config);
+    setPresetName('');
+    refreshPresets();
+  };
+
+  const handleLoadPreset = (name: string) => {
+    const loaded = PresetManager.load(name);
+    if (loaded) {
+      onLoadConfig(loaded);
+    }
+  };
+
+  const handleDeletePreset = (name: string) => {
+    if (confirm(`Delete preset "${name}"?`)) {
+      PresetManager.delete(name);
+      refreshPresets();
+    }
+  };
 
   const setPreset = (preset: 'front' | 'iso' | 'top') => {
     onChange('cameraMode', 'manual');
@@ -73,6 +108,12 @@ export const Controls: React.FC<ControlsProps> = ({ config, onChange }) => {
           className={`flex-1 flex items-center justify-center py-1.5 rounded text-[10px] uppercase tracking-wider transition-colors ${activeTab === 'visuals' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}
         >
           <Palette size={12} className="mr-1" /> Vibe
+        </button>
+         <button 
+          onClick={() => setActiveTab('presets')}
+          className={`flex-1 flex items-center justify-center py-1.5 rounded text-[10px] uppercase tracking-wider transition-colors ${activeTab === 'presets' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}
+        >
+          <FolderOpen size={12} className="mr-1" /> Save
         </button>
       </div>
 
@@ -376,6 +417,57 @@ export const Controls: React.FC<ControlsProps> = ({ config, onChange }) => {
 
             </div>
           </>
+        )}
+
+        {/* PRESETS TAB */}
+        {activeTab === 'presets' && (
+           <div className="space-y-4">
+              <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                <label className="text-xs uppercase text-gray-400 block mb-2">Save Current Preset</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={presetName}
+                    onChange={(e) => setPresetName(e.target.value)}
+                    placeholder="Preset Name..."
+                    className="flex-1 bg-black/40 border border-white/10 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-purple-500"
+                  />
+                  <button 
+                    onClick={handleSavePreset}
+                    disabled={!presetName}
+                    className="p-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded text-white transition-colors"
+                  >
+                    <Save size={16} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                 <div className="text-xs uppercase text-gray-400 mb-1">Load Presets</div>
+                 {savedPresets.length === 0 ? (
+                   <div className="text-center py-4 text-gray-600 text-xs italic">No saved presets</div>
+                 ) : (
+                   <div className="grid grid-cols-1 gap-2">
+                     {savedPresets.map(name => (
+                       <div key={name} className="flex items-center justify-between bg-white/5 p-2 rounded hover:bg-white/10 group transition-colors">
+                          <button 
+                            onClick={() => handleLoadPreset(name)}
+                            className="text-sm text-gray-200 text-left flex-1"
+                          >
+                            {name}
+                          </button>
+                          <button 
+                            onClick={() => handleDeletePreset(name)}
+                            className="text-gray-600 hover:text-red-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                       </div>
+                     ))}
+                   </div>
+                 )}
+              </div>
+           </div>
         )}
 
       </div>

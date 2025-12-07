@@ -1,12 +1,15 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { SceneManager } from './logic/SceneManager';
-import { GameConfig, DEFAULT_ROWS, DEFAULT_COLS } from './types';
+import { GameConfig, DEFAULT_ROWS, DEFAULT_COLS, AppMode } from './types';
 import { Controls } from './components/Controls';
+import { PresetManager } from './logic/PresetManager';
 
 const App: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneManagerRef = useRef<SceneManager | null>(null);
+  
+  const [mode, setMode] = useState<AppMode>('debug');
 
   const [config, setConfig] = useState<GameConfig>({
     bpm: 300,
@@ -14,13 +17,13 @@ const App: React.FC = () => {
     bloomStrength: 1.5,
     opacity: 0.9,
     gridVisible: true,
-    fogDensity: 0.035, // Default fog
+    fogDensity: 0.035,
     
     // New Settings defaults
     gridRows: DEFAULT_ROWS,
     gridCols: DEFAULT_COLS,
     minLinesToClear: 1,
-    enableLineClear: true, // Default to classic tetris logic
+    enableLineClear: true,
     
     cameraMode: 'orbit',
     rotationSpeed: 0.5,
@@ -29,16 +32,47 @@ const App: React.FC = () => {
     cameraZ: 30,
     
     // Flow
-    visualStyle: 'matrix', // Default to new matrix effect
+    visualStyle: 'matrix',
     flowSpeed: 2.0,
     
-    // Material Defaults (Glassy/Cyberpunk)
-    blockRoughness: 0.1, // Shiny
-    blockMetalness: 0.5, // Slightly metallic
-    blockTransmission: 0.2, // Slight glassiness by default
+    // Material Defaults
+    blockRoughness: 0.1,
+    blockMetalness: 0.5,
+    blockTransmission: 0.2,
     blockThickness: 1.0,
     environmentDimming: 0
   });
+
+  // Check URL params for mode on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mode') === 'live') {
+      setMode('live');
+    }
+  }, []);
+
+  // Expose Global API for external control (OBS, Stream Deck, Console)
+  useEffect(() => {
+    window.TetrisFlow = {
+      set: (key: keyof GameConfig, value: any) => {
+        setConfig(prev => ({ ...prev, [key]: value }));
+      },
+      setMode: (m: AppMode) => {
+        setMode(m);
+      },
+      loadPreset: (name: string) => {
+        const p = PresetManager.load(name);
+        if (p) setConfig(p);
+      },
+      getPresets: () => PresetManager.list(),
+      bulkUpdate: (updates: Partial<GameConfig>) => {
+        setConfig(prev => ({ ...prev, ...updates }));
+      },
+      toggle: (key: keyof GameConfig) => {
+        setConfig(prev => ({ ...prev, [key]: !prev[key as keyof GameConfig] }));
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -77,17 +111,26 @@ const App: React.FC = () => {
       {/* Vignette Overlay for extra cinematic feel */}
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.6)_100%)]" />
 
-      <Controls config={config} onChange={handleConfigChange} />
+      {/* Only show Controls in Debug Mode */}
+      {mode === 'debug' && (
+        <Controls 
+          config={config} 
+          onChange={handleConfigChange} 
+          onLoadConfig={setConfig}
+        />
+      )}
 
-      {/* Title Overlay */}
-      <div className="absolute bottom-10 left-10 z-10 pointer-events-none select-none">
-        <h1 className="text-4xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 drop-shadow-[0_0_15px_rgba(236,72,153,0.5)]">
-          TETRIS
-        </h1>
-        <h2 className="text-2xl font-bold text-white/80 tracking-[0.3em] ml-1 drop-shadow-md">
-          FLOW
-        </h2>
-      </div>
+      {/* Title Overlay - Hidden in Live Mode for clean feed */}
+      {mode === 'debug' && (
+        <div className="absolute bottom-10 left-10 z-10 pointer-events-none select-none">
+          <h1 className="text-4xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 drop-shadow-[0_0_15px_rgba(236,72,153,0.5)]">
+            TETRIS
+          </h1>
+          <h2 className="text-2xl font-bold text-white/80 tracking-[0.3em] ml-1 drop-shadow-md">
+            FLOW
+          </h2>
+        </div>
+      )}
     </div>
   );
 };
