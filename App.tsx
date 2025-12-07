@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, useRef, useState } from 'react';
 import { SceneManager } from './logic/SceneManager';
 import { GameConfig, DEFAULT_ROWS, DEFAULT_COLS } from './types';
@@ -26,6 +27,10 @@ const App: React.FC = () => {
     cameraX: 0,
     cameraY: 10,
     cameraZ: 30,
+    
+    // Flow
+    visualStyle: 'none',
+    flowSpeed: 2.0,
     
     blockRoughness: 0.2,
     blockMetalness: 0.6,

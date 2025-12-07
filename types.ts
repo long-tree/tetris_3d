@@ -1,4 +1,5 @@
 
+
 export type GridMatrix = (string | null)[][];
 
 export interface GameConfig {
@@ -22,6 +23,10 @@ export interface GameConfig {
   opacity: number;
   gridVisible: boolean;
   
+  // Flow / FX
+  visualStyle: 'none' | 'wave' | 'plasma' | 'heart';
+  flowSpeed: number;
+
   // Material & Atmosphere
   blockRoughness: number;
   blockMetalness: number;

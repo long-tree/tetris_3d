@@ -1,4 +1,5 @@
 
+
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
@@ -317,7 +318,7 @@ export class SceneManager {
       this.moveTimer = 0;
     }
 
-    this.syncVisuals();
+    this.syncVisuals(time / 1000); // Pass seconds to visual sync
     this.composer.render();
     requestAnimationFrame(this.render);
   };
@@ -356,12 +357,67 @@ export class SceneManager {
     }
   }
 
-  private syncVisuals() {
+  private syncVisuals(time: number) {
     // Hide all cubes first
     this.cubes.forEach(c => c.visible = false);
     let cubeIdx = 0;
 
-    const { gridRows } = this.config;
+    const { gridRows, gridCols, visualStyle, flowSpeed } = this.config;
+
+    // Helper: Apply visual FX pattern
+    // Returns a multiplier for brightness (0.0 to ~2.0) and optionally shifts hue
+    const getFlowFactor = (x: number, y: number, time: number): number => {
+      if (visualStyle === 'none') return 1.0;
+
+      // Normalize coords to center
+      const nx = (x - gridCols / 2) / (gridCols / 2);
+      const ny = (y - gridRows / 2) / (gridRows / 2);
+      const t = time * flowSpeed;
+
+      if (visualStyle === 'wave') {
+         // Diagonal sine wave
+         return 1.2 + 0.5 * Math.sin(nx * 3 + ny * 3 - t);
+      } 
+      
+      if (visualStyle === 'plasma') {
+        // Multi-sine plasma
+        const v = Math.sin(nx * 4 + t) + Math.sin(ny * 4 + t) + Math.sin((nx + ny) * 5 + t);
+        return 1.2 + 0.4 * v; 
+      }
+
+      if (visualStyle === 'heart') {
+        // Pulsing Heart Shape Math
+        // Heart eq: (x^2 + y^2 - 1)^3 - x^2*y^3 = 0
+        // We pulse the coordinate system to make it beat
+        const beat = 1.0 + 0.15 * Math.sin(t * 3) + 0.05 * Math.sin(t * 6); // complex beat
+        const hx = nx * 1.5 * beat;
+        const hy = (ny + 0.2) * 1.5 * beat; // Offset y slightly up
+        
+        const a = hx * hx + hy * hy - 1;
+        const result = a * a * a - hx * hx * hy * hy * hy;
+        
+        // Inside heart if result <= 0
+        if (result <= 0) {
+           return 2.5; // Super bright inside heart
+        } else {
+           return 0.3; // Dim outside
+        }
+      }
+
+      return 1.0;
+    };
+
+    const updateMesh = (mesh: THREE.Mesh, x: number, y: number, colorOffset: number) => {
+       const mat = mesh.material as THREE.MeshStandardMaterial;
+       const baseColor = this.getNeonColor(colorOffset);
+       
+       const flow = getFlowFactor(x, y, time);
+       
+       // Apply flow to emissive intensity/color
+       // We boost color brightness and emissive based on flow
+       mat.color.copy(baseColor).multiplyScalar(flow);
+       mat.emissive.copy(baseColor).multiplyScalar(flow);
+    };
 
     // 1. Render Static Grid
     for (let r = 0; r < gridRows; r++) {
@@ -371,14 +427,13 @@ export class SceneManager {
           if (cubeIdx >= this.cubes.length) break;
           const mesh = this.cubes[cubeIdx++];
           
-          mesh.position.set(c + 0.5, (gridRows - 1 - r) + 0.5, 0);
+          // Visual Y is inverted relative to logical row
+          const visY = (gridRows - 1 - r);
+          mesh.position.set(c + 0.5, visY + 0.5, 0);
           
           const shapeDef = SHAPES[cell] || SHAPES['I'];
-          const color = this.getNeonColor(shapeDef.colorOffset);
-          
           mesh.visible = true;
-          (mesh.material as THREE.MeshStandardMaterial).color.set(color);
-          (mesh.material as THREE.MeshStandardMaterial).emissive.set(color);
+          updateMesh(mesh, c, visY, shapeDef.colorOffset);
         }
       }
     }
@@ -386,7 +441,6 @@ export class SceneManager {
     // 2. Render Active Piece
     if (this.game.currentPiece) {
       const { shape, x, y, colorOffset } = this.game.currentPiece;
-      const color = this.getNeonColor(colorOffset);
       
       for (let r = 0; r < shape.length; r++) {
         for (let c = 0; c < shape[r].length; c++) {
@@ -397,13 +451,11 @@ export class SceneManager {
              const gridX = x + c;
              const gridY = y + r;
              
-             // Ensure it is within vertical bounds for rendering
-             // Note: y is 0 at top, rows-1 at bottom
              if (gridY >= 0 && gridY < gridRows) {
-               mesh.position.set(gridX + 0.5, (gridRows - 1 - gridY) + 0.5, 0);
+               const visY = (gridRows - 1 - gridY);
+               mesh.position.set(gridX + 0.5, visY + 0.5, 0);
                mesh.visible = true;
-               (mesh.material as THREE.MeshStandardMaterial).color.set(color);
-               (mesh.material as THREE.MeshStandardMaterial).emissive.set(color);
+               updateMesh(mesh, gridX, visY, colorOffset);
              }
           }
         }

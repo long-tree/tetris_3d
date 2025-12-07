@@ -1,7 +1,8 @@
 
+
 import React, { useState } from 'react';
 import { GameConfig } from '../types';
-import { Settings, Maximize2, Minimize2, Video, Grid, Palette, MonitorPlay, Layers } from 'lucide-react';
+import { Settings, Maximize2, Minimize2, Video, Grid, Palette, MonitorPlay, Layers, Zap } from 'lucide-react';
 
 interface ControlsProps {
   config: GameConfig;
@@ -241,6 +242,40 @@ export const Controls: React.FC<ControlsProps> = ({ config, onChange }) => {
         {/* VISUALS TAB */}
         {activeTab === 'visuals' && (
           <>
+            <div className="mb-4 space-y-3 p-3 bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-lg border border-white/10">
+               <div className="flex items-center space-x-2 text-yellow-300 mb-2">
+                 <Zap size={14} />
+                 <span className="text-xs font-bold uppercase">Light Flow FX</span>
+               </div>
+               
+               <div className="grid grid-cols-2 gap-2">
+                 {['none', 'wave', 'plasma', 'heart'].map((style) => (
+                   <button
+                     key={style}
+                     onClick={() => onChange('visualStyle', style)}
+                     className={`text-[10px] uppercase py-2 rounded border transition-all ${config.visualStyle === style ? 'bg-yellow-500/20 border-yellow-500 text-yellow-200' : 'bg-black/20 border-white/10 text-gray-400 hover:border-white/30'}`}
+                   >
+                     {style}
+                   </button>
+                 ))}
+               </div>
+
+               {config.visualStyle !== 'none' && (
+                 <div className="space-y-1 mt-2">
+                   <div className="flex justify-between text-[10px] uppercase text-gray-400">
+                     <span>Flow Speed</span>
+                     <span>{config.flowSpeed}</span>
+                   </div>
+                   <input
+                    type="range" min="0.1" max="5.0" step="0.1"
+                    value={config.flowSpeed}
+                    onChange={(e) => onChange('flowSpeed', Number(e.target.value))}
+                    className="w-full h-1 bg-gray-700 rounded appearance-none cursor-pointer accent-yellow-500"
+                   />
+                 </div>
+               )}
+            </div>
+
             <div className="space-y-2">
               <div className="flex justify-between text-xs uppercase tracking-widest text-blue-300">
                 <span>Palette Shift</span>
