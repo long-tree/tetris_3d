@@ -45,7 +45,7 @@ export class SceneManager {
 
     // 1. Setup Three.js
     this.scene = new THREE.Scene();
-    this.fog = new THREE.FogExp2(0x050510, 0.035);
+    this.fog = new THREE.FogExp2(0x050510, config.fogDensity);
     this.scene.fog = this.fog;
 
     // GENERATE ENVIRONMENT MAP (Crucial for Metal/Glass look)
@@ -268,7 +268,7 @@ export class SceneManager {
     this.bloomPass.strength = newConfig.bloomStrength;
     
     // Update Fog
-    this.fog.density = 0.02 * (1 - newConfig.environmentDimming * 0.8);
+    this.fog.density = newConfig.fogDensity;
 
     // Update Materials
     this.cubes.forEach(cube => {
@@ -415,44 +415,96 @@ export class SceneManager {
     // Helper: Apply visual FX pattern
     // Returns a factor to multiply emissive by
     const getFlowFactor = (x: number, y: number, time: number): number => {
-      if (visualStyle === 'none') return 1.0;
-
-      // Normalize coords to center
+      // Normalize coords
       const nx = (x - gridCols / 2) / (gridCols / 2);
-      const ny = (y - gridRows / 2) / (gridRows / 2);
+      const ny = (y - gridRows / 2) / (gridRows / 2); // -1 to 1 roughly
       const t = time * flowSpeed;
 
-      if (visualStyle === 'wave') {
-         // Diagonal sine wave
-         return 1.2 + 0.8 * Math.sin(nx * 3 + ny * 3 - t);
-      } 
-      
-      if (visualStyle === 'plasma') {
-        // Multi-sine plasma
-        const v = Math.sin(nx * 4 + t) + Math.sin(ny * 4 + t) + Math.sin((nx + ny) * 5 + t);
-        return 1.2 + 0.6 * v; 
-      }
+      switch (visualStyle) {
+        case 'none': return 1.0;
+        
+        case 'wave':
+          // Diagonal sine wave
+          return 1.2 + 0.8 * Math.sin(nx * 3 + ny * 3 - t);
 
-      if (visualStyle === 'heart') {
-        // Pulsing Heart Shape Math
-        // Heart eq: (x^2 + y^2 - 1)^3 - x^2*y^3 = 0
-        // We pulse the coordinate system to make it beat
-        const beat = 1.0 + 0.2 * Math.sin(t * 5) + 0.1 * Math.sin(t * 10); // rapid beat
-        const hx = nx * 1.5 * beat;
-        const hy = (ny + 0.3) * 1.5 * beat;
-        
-        const a = hx * hx + hy * hy - 1;
-        const result = a * a * a - hx * hx * hy * hy * hy;
-        
-        // Inside heart if result <= 0
-        if (result <= 0) {
-           return 4.0; // Extremely bright inside
-        } else {
-           return 0.1; // Dim background
+        case 'plasma':
+          // Multi-sine plasma
+          const v = Math.sin(nx * 4 + t) + Math.sin(ny * 4 + t) + Math.sin((nx + ny) * 5 + t);
+          return 1.2 + 0.6 * v; 
+
+        case 'heart': {
+          // Pulsing Heart Shape Math
+          const beat = 1.0 + 0.2 * Math.sin(t * 5) + 0.1 * Math.sin(t * 10); // rapid beat
+          const hx = nx * 1.5 * beat;
+          const hy = (ny + 0.3) * 1.5 * beat;
+          const a = hx * hx + hy * hy - 1;
+          const result = a * a * a - hx * hx * hy * hy * hy;
+          return result <= 0 ? 4.0 : 0.1;
         }
-      }
 
-      return 1.0;
+        case 'matrix': {
+          // Digital Rain: Falls from top to bottom
+          // Use column index to generate a pseudo-random offset
+          // x is integer column index 0..cols
+          const colSeed = Math.sin(x * 123.456) * 1000;
+          const speed = flowSpeed * 4.0;
+          // Calculate a dropping "head" position
+          // y goes from 0 (bottom) to gridRows (top)
+          const gridHeight = gridRows;
+          // We want it falling, so phase goes negative or we subtract
+          const phase = (t * speed + colSeed) % (gridHeight * 1.5);
+          // Head Y position (world space)
+          const headY = gridHeight - phase + (gridHeight * 0.25);
+          
+          const dist = headY - y;
+          // Trail length = 8
+          if (dist > 0 && dist < 8) {
+             return 2.5 * (1 - (dist / 8)); // Bright head, fading tail
+          }
+          return 0.05; // Dim background
+        }
+
+        case 'fire': {
+           // Hot at bottom (y=0), Cold at top
+           // Add noise turbulence
+           const turbulence = Math.sin(x * 2.0 + t * 2.0) + Math.sin(y * 0.5 - t * 5.0);
+           const heightFactor = 1.0 - (y / gridRows); // 1.0 at bottom, 0 at top
+           const intensity = heightFactor * heightFactor * 3.0 + (turbulence * 0.5);
+           return Math.max(0.1, intensity);
+        }
+
+        case 'scanline': {
+           // Horizontal bar moving up and down
+           const period = 4.0 / flowSpeed;
+           const normTime = (time % period) / period; // 0 to 1
+           const scanY = normTime * gridRows; // 0 to top
+           // Make it bounce? or loop? Loop is fine.
+           // Bouncing:
+           // const bounce = Math.sin(time * flowSpeed) * 0.5 + 0.5; 
+           // const scanY = bounce * gridRows;
+           
+           const dist = Math.abs(y - scanY);
+           if (dist < 1.5) {
+             return 3.0 * (1 - dist/1.5);
+           }
+           return 0.1;
+        }
+
+        case 'sparkle': {
+           // Random flashing
+           // We use a noise function based on discrete time buckets
+           // Bucket size implies duration of sparkle
+           const bucket = Math.floor(time * 5.0 * flowSpeed); // Change 5x per second * speed
+           // Pseudo random hash
+           const hash = Math.sin(x * 12.9898 + y * 78.233 + bucket * 43758.5453);
+           // If hash > threshold, light up
+           // Math.sin range -1 to 1. 
+           if (hash > 0.8) return 3.0;
+           return 0.2;
+        }
+
+        default: return 1.0;
+      }
     };
 
     const updateMesh = (mesh: THREE.Mesh, x: number, y: number, colorOffset: number) => {

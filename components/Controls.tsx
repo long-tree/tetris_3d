@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { GameConfig } from '../types';
-import { Settings, Maximize2, Minimize2, Video, Grid, Palette, MonitorPlay, Layers, Zap } from 'lucide-react';
+import { Settings, Minimize2, Video, Grid, Palette, Zap } from 'lucide-react';
 
 interface ControlsProps {
   config: GameConfig;
@@ -247,12 +247,12 @@ export const Controls: React.FC<ControlsProps> = ({ config, onChange }) => {
                  <span className="text-xs font-bold uppercase">Light Flow FX</span>
                </div>
                
-               <div className="grid grid-cols-2 gap-2">
-                 {['none', 'wave', 'plasma', 'heart'].map((style) => (
+               <div className="grid grid-cols-4 gap-2">
+                 {['none', 'wave', 'plasma', 'heart', 'matrix', 'fire', 'scanline', 'sparkle'].map((style) => (
                    <button
                      key={style}
                      onClick={() => onChange('visualStyle', style)}
-                     className={`text-[10px] uppercase py-2 rounded border transition-all ${config.visualStyle === style ? 'bg-yellow-500/20 border-yellow-500 text-yellow-200' : 'bg-black/20 border-white/10 text-gray-400 hover:border-white/30'}`}
+                     className={`text-[9px] uppercase py-2 rounded border transition-all truncate ${config.visualStyle === style ? 'bg-yellow-500/20 border-yellow-500 text-yellow-200' : 'bg-black/20 border-white/10 text-gray-400 hover:border-white/30'}`}
                    >
                      {style}
                    </button>
@@ -300,6 +300,19 @@ export const Controls: React.FC<ControlsProps> = ({ config, onChange }) => {
                 value={config.bloomStrength}
                 onChange={(e) => onChange('bloomStrength', Number(e.target.value))}
                 className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+              />
+            </div>
+            
+             <div className="space-y-2">
+              <div className="flex justify-between text-xs uppercase text-gray-300">
+                <span>Fog Density</span>
+                <span>{(config.fogDensity * 1000).toFixed(1)}</span>
+              </div>
+              <input
+                type="range" min="0" max="0.15" step="0.005"
+                value={config.fogDensity}
+                onChange={(e) => onChange('fogDensity', Number(e.target.value))}
+                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-gray-500"
               />
             </div>
 

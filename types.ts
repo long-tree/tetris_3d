@@ -21,9 +21,10 @@ export interface GameConfig {
   bloomStrength: number;
   opacity: number;
   gridVisible: boolean;
+  fogDensity: number; // Controls atmosphere/brightness falloff
   
   // Flow / FX
-  visualStyle: 'none' | 'wave' | 'plasma' | 'heart';
+  visualStyle: 'none' | 'wave' | 'plasma' | 'heart' | 'matrix' | 'fire' | 'scanline' | 'sparkle';
   flowSpeed: number;
 
   // Material & Atmosphere
@@ -31,7 +32,7 @@ export interface GameConfig {
   blockMetalness: number;
   blockTransmission: number; // New: Glass effect
   blockThickness: number;    // New: Volume effect
-  environmentDimming: number; // Fog density control
+  environmentDimming: number; // Legacy/Additional dimming
 }
 
 export interface Tetromino {

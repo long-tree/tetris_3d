@@ -14,6 +14,7 @@ const App: React.FC = () => {
     bloomStrength: 1.5,
     opacity: 0.9,
     gridVisible: true,
+    fogDensity: 0.035, // Default fog
     
     // New Settings defaults
     gridRows: DEFAULT_ROWS,
@@ -28,7 +29,7 @@ const App: React.FC = () => {
     cameraZ: 30,
     
     // Flow
-    visualStyle: 'wave',
+    visualStyle: 'matrix', // Default to new matrix effect
     flowSpeed: 2.0,
     
     // Material Defaults (Glassy/Cyberpunk)
