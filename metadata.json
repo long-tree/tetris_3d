@@ -1,0 +1,5 @@
+{
+  "name": "Neon Tetris Flow",
+  "description": "A cinematic, AI-simulated Tetris background in a Synthwave style using Three.js and UnrealBloomPass.",
+  "requestFramePermissions": []
+}
