@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { SceneManager } from './logic/SceneManager';
-import { GameConfig, DEFAULT_ROWS, DEFAULT_COLS, AppMode } from './types';
+import { GameConfig, DEFAULT_ROWS, DEFAULT_COLS, AppMode, TetrisEventType } from './types';
 import { Controls } from './components/Controls';
 import { PresetManager } from './logic/PresetManager';
 
@@ -14,6 +14,9 @@ const App: React.FC<AppProps> = ({ initialConfigOverride, sdkMode = false }) => 
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneManagerRef = useRef<SceneManager | null>(null);
   
+  // Event Listeners Storage: { 'reset': [cb1, cb2], 'lineClear': [] }
+  const eventListenersRef = useRef<Record<string, (() => void)[]>>({});
+
   // If in SDK mode, default to 'live', otherwise 'debug'
   const [mode, setMode] = useState<AppMode>(sdkMode ? 'live' : 'debug');
 
@@ -83,6 +86,17 @@ const App: React.FC<AppProps> = ({ initialConfigOverride, sdkMode = false }) => 
       },
       toggle: (key: keyof GameConfig) => {
         setConfig(prev => ({ ...prev, [key]: !prev[key as keyof GameConfig] }));
+      },
+      on: (event: TetrisEventType, callback: () => void) => {
+        if (!eventListenersRef.current[event]) {
+          eventListenersRef.current[event] = [];
+        }
+        eventListenersRef.current[event].push(callback);
+      },
+      off: (event: TetrisEventType, callback: () => void) => {
+        if (eventListenersRef.current[event]) {
+           eventListenersRef.current[event] = eventListenersRef.current[event].filter(cb => cb !== callback);
+        }
       }
     };
 
@@ -94,11 +108,19 @@ const App: React.FC<AppProps> = ({ initialConfigOverride, sdkMode = false }) => 
     };
   }, []);
 
+  // Internal handler called by SceneManager
+  const handleSceneEvent = (type: TetrisEventType) => {
+     const listeners = eventListenersRef.current[type];
+     if (listeners) {
+       listeners.forEach(cb => cb());
+     }
+  };
+
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Initialize 3D Scene
-    const sceneManager = new SceneManager(containerRef.current, config);
+    // Initialize 3D Scene, passing the event handler
+    const sceneManager = new SceneManager(containerRef.current, config, handleSceneEvent);
     sceneManagerRef.current = sceneManager;
     
     // Start Render Loop

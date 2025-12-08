@@ -48,6 +48,8 @@ export interface Tetromino {
   pivot: { x: number; y: number };
 }
 
+export type TetrisEventType = 'reset' | 'lineClear';
+
 export interface TetrisGlobalAPI {
   set: (key: keyof GameConfig, value: any) => void;
   setMode: (mode: AppMode) => void;
@@ -55,6 +57,16 @@ export interface TetrisGlobalAPI {
   getPresets: () => string[];
   bulkUpdate: (partialConfig: Partial<GameConfig>) => void;
   toggle: (key: keyof GameConfig) => void;
+  /**
+   * Register an event listener
+   * @param event The event name (e.g., 'reset')
+   * @param callback Function to execute when event triggers
+   */
+  on: (event: TetrisEventType, callback: () => void) => void;
+  /**
+   * Remove an event listener
+   */
+  off: (event: TetrisEventType, callback: () => void) => void;
 }
 
 export interface TetrisSDK {

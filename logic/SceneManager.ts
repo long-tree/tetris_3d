@@ -4,7 +4,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass';
-import { GameConfig, SHAPES } from '../types';
+import { GameConfig, SHAPES, TetrisEventType } from '../types';
 import { TetrisGame } from './TetrisAI';
 
 export class SceneManager {
@@ -18,6 +18,9 @@ export class SceneManager {
   
   private game: TetrisGame;
   private config: GameConfig;
+
+  // Event Callback
+  private onEvent?: (type: TetrisEventType) => void;
 
   // Visual Assets
   private cubes: THREE.Mesh[] = [];
@@ -37,9 +40,10 @@ export class SceneManager {
   // Constants
   private readonly BOARD_CENTER_Y = 10;
 
-  constructor(container: HTMLElement, config: GameConfig) {
+  constructor(container: HTMLElement, config: GameConfig, onEvent?: (type: TetrisEventType) => void) {
     this.container = container;
     this.config = config;
+    this.onEvent = onEvent;
     this.game = new TetrisGame(config.gridRows, config.gridCols, config.minLinesToClear);
     this.game.enableLineClear = config.enableLineClear;
 
@@ -350,6 +354,11 @@ export class SceneManager {
     const tickInterval = 60 / Math.max(this.config.bpm, 10);
     
     if (this.game.gameOver) {
+      // Trigger Event Callback
+      if (this.onEvent) {
+        this.onEvent('reset');
+      }
+
       // Fancy reset?
       this.game.reset();
       this.currentMove = null;
