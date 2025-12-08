@@ -50,6 +50,12 @@ export interface Tetromino {
 
 export type TetrisEventType = 'reset' | 'lineClear';
 
+export interface MusicSyncParams {
+  density: number;      // 0.0 to 1.0 (Controls flowSpeed)
+  brightness: number;   // 0.0 to 1.0 (Controls temperature)
+  expectedDuration: number; // Seconds (Controls BPM estimation)
+}
+
 export interface TetrisGlobalAPI {
   set: (key: keyof GameConfig, value: any) => void;
   setMode: (mode: AppMode) => void;
@@ -57,6 +63,12 @@ export interface TetrisGlobalAPI {
   getPresets: () => string[];
   bulkUpdate: (partialConfig: Partial<GameConfig>) => void;
   toggle: (key: keyof GameConfig) => void;
+  
+  /**
+   * Sync visual parameters with music analysis data
+   */
+  syncMusic: (params: MusicSyncParams) => void;
+
   /**
    * Register an event listener
    * @param event The event name (e.g., 'reset')

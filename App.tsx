@@ -1,9 +1,22 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { SceneManager } from './logic/SceneManager';
-import { GameConfig, DEFAULT_ROWS, DEFAULT_COLS, AppMode, TetrisEventType } from './types';
+import { GameConfig, DEFAULT_ROWS, DEFAULT_COLS, AppMode, TetrisEventType, MusicSyncParams } from './types';
 import { Controls } from './components/Controls';
 import { PresetManager } from './logic/PresetManager';
+
+// --- CONFIGURATION RANGES ---
+// Modify these values to constrain the music sync logic
+const RANGES = {
+  FLOW_SPEED: [1, 4],     // Controlled by 'density'
+  TEMPERATURE: [0, 1],    // Controlled by 'brightness'
+  BPM: [60, 600]          // Controlled by 'expectedDuration'
+};
+
+// Coefficient for estimating BPM based on duration.
+// Formula: BPM = (Rows * Cols * COEFF) / DurationSeconds
+// Increase this if the game finishes too slowly. Decrease if it finishes too fast.
+const BPM_FILL_COEFFICIENT = 40; 
 
 interface AppProps {
   initialConfigOverride?: Partial<GameConfig>;
@@ -21,38 +34,32 @@ const App: React.FC<AppProps> = ({ initialConfigOverride, sdkMode = false }) => 
   const [mode, setMode] = useState<AppMode>(sdkMode ? 'live' : 'debug');
 
   const [config, setConfig] = useState<GameConfig>({
-    bpm: 300,
-    temperature: 0.5,
-    bloomStrength: 1.5,
-    opacity: 0.9,
+    // --- USER REQUESTED PRESETS ---
+    bpm: 60,
+    temperature: 0.36,
+    bloomStrength: 0.9,
+    opacity: 0.15,
     gridVisible: true,
-    fogDensity: 0.035,
-    
-    // New Settings defaults
-    gridRows: DEFAULT_ROWS,
-    gridCols: DEFAULT_COLS,
+    fogDensity: 0,
+    gridRows: 18,
+    gridCols: 20,
     minLinesToClear: 1,
-    enableLineClear: true,
-    
-    cameraMode: 'orbit',
+    enableLineClear: false,
+    cameraMode: "manual",
     rotationSpeed: 0.5,
     cameraX: 0,
     cameraY: 10,
-    cameraZ: 30,
-    
-    // Flow
-    visualStyle: 'matrix',
-    flowSpeed: 2.0,
-    customGrid: [], // Default empty grid
-    
-    // Material Defaults
+    cameraZ: 22,
+    visualStyle: "matrix",
+    flowSpeed: 3.5,
+    customGrid: [],
     blockRoughness: 0.1,
     blockMetalness: 0.5,
     blockTransmission: 0.2,
-    blockThickness: 1.0,
+    blockThickness: 1,
     environmentDimming: 0,
-    
-    // Apply overrides
+
+    // Apply overrides if any
     ...initialConfigOverride
   });
 
@@ -87,6 +94,42 @@ const App: React.FC<AppProps> = ({ initialConfigOverride, sdkMode = false }) => 
       toggle: (key: keyof GameConfig) => {
         setConfig(prev => ({ ...prev, [key]: !prev[key as keyof GameConfig] }));
       },
+      
+      // --- MUSIC SYNC INTERFACE ---
+      syncMusic: (params: MusicSyncParams) => {
+        const { density, brightness, expectedDuration } = params;
+
+        // 1. Map Density -> Flow Speed
+        // Clamp density 0-1
+        const d = Math.max(0, Math.min(1, density));
+        const newFlowSpeed = RANGES.FLOW_SPEED[0] + d * (RANGES.FLOW_SPEED[1] - RANGES.FLOW_SPEED[0]);
+
+        // 2. Map Brightness -> Temperature
+        // Clamp brightness 0-1
+        const b = Math.max(0, Math.min(1, brightness));
+        const newTemp = RANGES.TEMPERATURE[0] + b * (RANGES.TEMPERATURE[1] - RANGES.TEMPERATURE[0]);
+
+        // 3. Map Duration -> BPM
+        // Estimate: To fill a board of Size (Rows * Cols), we need a certain speed.
+        // If duration is 0 or missing, default to current BPM or mid range.
+        let newBpm = 60;
+        if (expectedDuration && expectedDuration > 0) {
+           // Heuristic formula
+           const totalSlots = config.gridRows * config.gridCols;
+           const calculatedBpm = (totalSlots * BPM_FILL_COEFFICIENT) / expectedDuration;
+           newBpm = Math.max(RANGES.BPM[0], Math.min(RANGES.BPM[1], calculatedBpm));
+        } else {
+           newBpm = config.bpm;
+        }
+
+        setConfig(prev => ({
+          ...prev,
+          flowSpeed: parseFloat(newFlowSpeed.toFixed(2)),
+          temperature: parseFloat(newTemp.toFixed(2)),
+          bpm: Math.floor(newBpm)
+        }));
+      },
+
       on: (event: TetrisEventType, callback: () => void) => {
         if (!eventListenersRef.current[event]) {
           eventListenersRef.current[event] = [];
@@ -100,13 +143,10 @@ const App: React.FC<AppProps> = ({ initialConfigOverride, sdkMode = false }) => 
       }
     };
 
-    // Cleanup on unmount to prevent stale API references in SDK mode
+    // Cleanup on unmount
     return () => {
-      // We don't delete window.TetrisFlow here because in strict mode React mounts/unmounts twice,
-      // and we want to keep the reference valid.
-      // However, for a true SDK "destroy", the parent unmounts the root, and index.tsx handles the deletion.
     };
-  }, []);
+  }, [config.gridRows, config.gridCols, config.bpm]); // Re-bind if dimensions change to keep calc accurate
 
   // Internal handler called by SceneManager
   const handleSceneEvent = (type: TetrisEventType) => {
