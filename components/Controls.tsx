@@ -289,7 +289,7 @@ export const Controls: React.FC<ControlsProps> = ({ config, onChange, onLoadConf
                </div>
                
                <div className="grid grid-cols-4 gap-2">
-                 {['none', 'wave', 'plasma', 'heart', 'matrix', 'fire', 'scanline', 'sparkle'].map((style) => (
+                 {['none', 'wave', 'plasma', 'heart', 'matrix', 'fire', 'scanline', 'sparkle', 'custom'].map((style) => (
                    <button
                      key={style}
                      onClick={() => onChange('visualStyle', style)}
@@ -300,7 +300,7 @@ export const Controls: React.FC<ControlsProps> = ({ config, onChange, onLoadConf
                  ))}
                </div>
 
-               {config.visualStyle !== 'none' && (
+               {config.visualStyle !== 'none' && config.visualStyle !== 'custom' && (
                  <div className="space-y-1 mt-2">
                    <div className="flex justify-between text-[10px] uppercase text-gray-400">
                      <span>Flow Speed</span>
@@ -312,6 +312,13 @@ export const Controls: React.FC<ControlsProps> = ({ config, onChange, onLoadConf
                     onChange={(e) => onChange('flowSpeed', Number(e.target.value))}
                     className="w-full h-1 bg-gray-700 rounded appearance-none cursor-pointer accent-yellow-500"
                    />
+                 </div>
+               )}
+
+               {config.visualStyle === 'custom' && (
+                 <div className="text-[10px] text-gray-400 mt-2 bg-black/40 p-2 rounded">
+                   <p>API Mode Active.</p>
+                   <p className="mt-1 text-gray-500">Use <code>TetrisFlow.set('customGrid', [...])</code> to draw patterns.</p>
                  </div>
                )}
             </div>
@@ -414,6 +421,16 @@ export const Controls: React.FC<ControlsProps> = ({ config, onChange, onLoadConf
                    />
                  </div>
                </div>
+
+                <div className="space-y-1 mt-3 border-t border-white/5 pt-2">
+                   <label className="text-[10px] text-gray-500 uppercase">Env Dimming (Reflection)</label>
+                   <input
+                    type="range" min="0" max="1" step="0.1"
+                    value={config.environmentDimming}
+                    onChange={(e) => onChange('environmentDimming', Number(e.target.value))}
+                    className="w-full h-1 bg-gray-700 rounded cursor-pointer accent-purple-900"
+                   />
+                 </div>
 
             </div>
           </>

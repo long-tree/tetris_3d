@@ -26,15 +26,20 @@ export interface GameConfig {
   fogDensity: number; // Controls atmosphere/brightness falloff
   
   // Flow / FX
-  visualStyle: 'none' | 'wave' | 'plasma' | 'heart' | 'matrix' | 'fire' | 'scanline' | 'sparkle';
+  // Added 'custom' for user-defined bitmaps
+  visualStyle: 'none' | 'wave' | 'plasma' | 'heart' | 'matrix' | 'fire' | 'scanline' | 'sparkle' | 'custom';
   flowSpeed: number;
+  
+  // A 2D array of brightness values (0 to ~5) for the 'custom' style
+  // Dimensions should match gridRows/gridCols, or will be read relatively
+  customGrid: number[][];
 
   // Material & Atmosphere
   blockRoughness: number;
   blockMetalness: number;
   blockTransmission: number; // New: Glass effect
   blockThickness: number;    // New: Volume effect
-  environmentDimming: number; // Legacy/Additional dimming
+  environmentDimming: number; // 0 = Full Reflection, 1 = No Reflection
 }
 
 export interface Tetromino {

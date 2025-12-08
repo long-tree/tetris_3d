@@ -51,6 +51,7 @@ export class SceneManager {
     // GENERATE ENVIRONMENT MAP (Crucial for Metal/Glass look)
     this.envTexture = this.generateEnvironment();
     this.scene.environment = this.envTexture;
+    this.scene.environmentIntensity = 1.0 - config.environmentDimming;
     // We don't set background to texture to keep deep black space feel, but environment is set for reflections.
 
     const width = container.clientWidth;
@@ -270,6 +271,9 @@ export class SceneManager {
     // Update Fog
     this.fog.density = newConfig.fogDensity;
 
+    // Update Environment Intensity
+    this.scene.environmentIntensity = 1.0 - newConfig.environmentDimming;
+
     // Update Materials
     this.cubes.forEach(cube => {
       const mat = cube.material as THREE.MeshPhysicalMaterial;
@@ -410,7 +414,7 @@ export class SceneManager {
     this.cubes.forEach(c => c.visible = false);
     let cubeIdx = 0;
 
-    const { gridRows, gridCols, visualStyle, flowSpeed } = this.config;
+    const { gridRows, gridCols, visualStyle, flowSpeed, customGrid } = this.config;
 
     // Helper: Apply visual FX pattern
     // Returns a factor to multiply emissive by
@@ -423,6 +427,27 @@ export class SceneManager {
       switch (visualStyle) {
         case 'none': return 1.0;
         
+        case 'custom': {
+           // Read from the customGrid provided via API
+           // We map board Y (0 at bottom) to customGrid Y (usually 0 at top, so we flip)
+           // If customGrid isn't provided or out of bounds, return default
+           if (!customGrid || customGrid.length === 0) return 1.0;
+           
+           // We'll try to map logic coords to grid coords
+           // y is 0 (bottom) -> rows-1 (top).
+           // Typically bitmaps are 0 (top) -> rows-1 (bottom).
+           const matrixY = (customGrid.length - 1) - y; 
+           const matrixX = x;
+
+           if (matrixY >= 0 && matrixY < customGrid.length) {
+             const row = customGrid[matrixY];
+             if (row && matrixX >= 0 && matrixX < row.length) {
+                return row[matrixX]; // Returns the brightness value directly
+             }
+           }
+           return 0.1; // Dim if out of defined pattern
+        }
+
         case 'wave':
           // Diagonal sine wave
           return 1.2 + 0.8 * Math.sin(nx * 3 + ny * 3 - t);

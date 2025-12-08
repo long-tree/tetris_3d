@@ -40,6 +40,7 @@ const App: React.FC<AppProps> = ({ initialConfigOverride, sdkMode = false }) => 
     // Flow
     visualStyle: 'matrix',
     flowSpeed: 2.0,
+    customGrid: [], // Default empty grid
     
     // Material Defaults
     blockRoughness: 0.1,
